@@ -138,6 +138,85 @@ static void dofptest(int test, double val, char *width, int prec, int *fail)
     }
 }
 
+enum integer_type {INT8, UINT8, INT16, UINT16, INT32, UINT32, INT64, UINT64};
+
+union integer_container {
+    int64_t i64;
+    uint64_t ui64;
+    int32_t i32;
+    uint32_t ui32;
+    int16_t i16;
+    uint16_t ui16;
+    int8_t i8;
+    uint8_t ui8;
+};
+
+struct integer_test_data {
+    const char *format;
+    const char *expected_result;
+    enum integer_type i_type;
+    union integer_container number;
+};
+
+struct integer_test_data integer_tests[] = {
+    {"%d", "1", INT8, {1}},
+    {"%d", "127", INT8, {127}},
+    /* {"%d", "-1", INT8, {-1}},  // This is broken. */
+    {"%u", "1", UINT8, {1}},
+    {"%u", "255", UINT8, {255}},
+
+    {"%d", "1", INT16, {1}},
+    {"%d", "32767", INT16, {32767}},
+    /* {"%d", "-1", INT16, {-1}},  // This is broken. */
+    {"%u", "1", UINT16, {1}},
+    {"%u", "65535", UINT16, {65535}},
+
+    {"%d", "1", INT32, {1}},
+    {"%d", "2147483647", INT32, {2147483647}},
+    {"%d", "-1", INT32, {-1}},
+    {"%u", "1", UINT32, {1}},
+    {"%u", "4294967295", UINT32, {-1}},
+
+    {"%lld", "1", INT64, {1}},
+    {"%lld", "9223372036854775807", INT64, {9223372036854775807LL}},
+    {"%lld", "-1", INT64, {-1}},
+    {"%llu", "1", UINT64, {1}},
+    {"%llu", "18446744073709551615", UINT64, {-1}},
+};
+
+#define NUMBER_OF_INTEGER_TESTS ((int)(sizeof(integer_tests)/sizeof(integer_tests[0])))
+
+static void dointtest(struct integer_test_data data, int *fail)
+{
+    char result[80];
+
+    switch(data.i_type) {
+    case INT8:
+        BIO_snprintf(result, sizeof(result), data.format, (int8_t)data.number.i8);
+    case UINT8:
+        BIO_snprintf(result, sizeof(result), data.format, (uint8_t)data.number.ui8);
+    case INT16:
+        BIO_snprintf(result, sizeof(result), data.format, (int16_t)data.number.i16);
+    case UINT16:
+        BIO_snprintf(result, sizeof(result), data.format, (uint16_t)data.number.ui16);
+    case INT32:
+        BIO_snprintf(result, sizeof(result), data.format, (int32_t)data.number.i32);
+    case UINT32:
+        BIO_snprintf(result, sizeof(result), data.format, (uint32_t)data.number.ui32);
+    case INT64:
+        BIO_snprintf(result, sizeof(result), data.format, (int64_t)data.number.i64);
+    case UINT64:
+        BIO_snprintf(result, sizeof(result), data.format, (uint64_t)data.number.ui64);
+    }
+
+    if(strcmp(result, data.expected_result) != 0) {
+        printf("Test failed. Expected \"%s\". Got \"%s\". "
+               "Format \"%s\"\n", data.expected_result, result,
+               data.format);
+        *fail = 1;
+    }
+}
+
 int main(int argc, char **argv)
 {
     int test = 0;
@@ -205,6 +284,10 @@ int main(int argc, char **argv)
         printf("Test %d failed. Unexpected success return from "
                "BIO_snprintf()\n", test);
         fail = 1;
+    }
+
+    for(i=0; i<NUMBER_OF_INTEGER_TESTS; i++) {
+        dointtest(integer_tests[i], &fail);
     }
 
 #ifndef OPENSSL_NO_CRYPTO_MDEBUG

@@ -162,6 +162,11 @@ Makefile
 *.rc
 *.res
 
+# Coverage files
+**/*.gcda
+**/*.gcno
+*.gcov
+
 # Misc generated stuff
 Makefile.save
 /crypto/**/lib
